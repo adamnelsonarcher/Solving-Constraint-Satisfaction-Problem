@@ -1,18 +1,24 @@
-from copy import deepcopy
+######################
+# COSC 4368          #
+# Adam Nelson-Archer #
+######################
+
 
 def forwardCheck(assignment, domains, constraints, var_assigned):
   updated_domains = {var: list(domains[var]) for var in domains}
 
   for constraint, vars_involved in constraints:
-    # First, check if the constraint involves the variable that was just assigned
+    # check if the constraint involves the variable that was just assigned
     if var_assigned in vars_involved:
       # Determine the number of unassigned variables involved in this constraint
       unassigned_vars = [var for var in vars_involved if var not in assignment]
 
       # Proceed only if there's exactly one unassigned variable left in the constraint
+      # It is pretty much useless to run with more than 
+      # 1 unassigned variable given these constraints
       if len(unassigned_vars) == 1:
         unassigned_var = unassigned_vars[0]  # The only unassigned variable
-        for value in updated_domains[unassigned_var][:]:  # Iterate over a copy to safely modify
+        for value in updated_domains[unassigned_var][:]:  # Iterate over a copy
           hypothetical_assignment = assignment.copy()
           hypothetical_assignment[unassigned_var] = value
 
@@ -25,27 +31,50 @@ def forwardCheck(assignment, domains, constraints, var_assigned):
 
   return updated_domains
 
+def getLCV(var, assignment, domains, constraints):
+  value_counts = []
+  for value in domains[var]:
+      new_assignment = assignment.copy()
+      new_assignment[var] = value
+      pruned_domains = forwardCheck(new_assignment, domains, constraints, var)
+
+      if pruned_domains is not None:
+          # Count how many options are left for the other variables
+          options_left = sum(len(pruned_domains[v]) for v in pruned_domains if v not in new_assignment)
+          value_counts.append((value, options_left))
+      else:
+          # If domain is pruned to nothing, consider this as least preferable
+          value_counts.append((value, -1))
+
+  # Sort by the number of options left, preferring higher counts (more options left)
+  value_counts.sort(key=lambda item: -item[1])
+
+  # Return the values in sorted order
+  return [value for value, _ in value_counts]
 
 def recursiveBacktracking(assignment, variables, domains, constraints, nva):
   if len(assignment) == len(variables):
-    return assignment  # Found a valid assignment
-
-  for var in variables:
-    if var not in assignment:  # Find the first unassigned variable
-      for value in domains[var]:
-        new_assignment = assignment.copy()
-        new_assignment[var] = value
-        nva[0] += 1  # Increment the number of variable assignments
-        pruned_domains = forwardCheck(new_assignment, domains, constraints, var)
-        if pruned_domains is not None:
+      return assignment
+  
+  unassigned_vars = [var for var in variables if var not in assignment]
+  var = unassigned_vars[0]
+  # here we sort the domain of the unassigned value to prefer the optimal values
+  least_constraining_values = getLCV(var, assignment, domains, constraints)
+  
+  for value in least_constraining_values:
+      new_assignment = assignment.copy()
+      new_assignment[var] = value
+      nva[0] += 1
+      pruned_domains = forwardCheck(new_assignment, domains, constraints, var)
+      if pruned_domains is not None:
           result = recursiveBacktracking(new_assignment, variables, pruned_domains, constraints, nva)
           if result is not None:
-            return result  # Success
-      return None  # Failure triggers backtracking for this variable
-
-#
-
+              return result
+  return None
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+def runCSP():
+  return
 
 def main():
   variables = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']
@@ -84,11 +113,12 @@ def main():
   print("selected constraints:", numConstraints)
   print("selected variables: ", variables[:numVariables])
 
-  # Start the solver with an empty assignment
+  # find one solution for the given inputs
   solution = recursiveBacktracking(
     assignment, 
     variables[:numVariables], 
-    domains, constraints[:numConstraints], 
+    domains, 
+    constraints[:numConstraints], 
     nva
   )
 
