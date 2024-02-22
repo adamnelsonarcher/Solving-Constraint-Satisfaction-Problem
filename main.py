@@ -1,56 +1,102 @@
-# Combined list of all constraints
-constraints = [
-    # Problem A constraints
-        (lambda assignment: assignment['A'] == assignment['B']**2 - assignment['C']**2, ['A', 'B', 'C']),
-        (lambda assignment: assignment['E'] + assignment['F'] > assignment['B'], ['E', 'F', 'B']),
-        (lambda assignment: assignment['D'] == assignment['B']**2 - 3 * assignment['A'], ['D', 'B', 'A']),
-        (lambda assignment: (assignment['B'] - assignment['C']) ** 2 == assignment['E'] * assignment['F'] * assignment['C'] - 1861, ['B', 'C', 'E', 'F']),
-        (lambda assignment: assignment['C'] + assignment['D'] + assignment['E'] + assignment['F'] < 120, ['C', 'D', 'E', 'F']),
-        # Problem B constraints
-        (lambda assignment: (assignment['G'] + assignment['I'])**3 == (assignment['H'] - assignment['A'] - 1)**2, ['G', 'I', 'H', 'A']),
-        (lambda assignment: assignment['B'] * assignment['E'] * assignment['F'] == assignment['H'] * assignment['B'] - 200, ['B', 'E', 'F', 'H']),
-        (lambda assignment: (assignment['C'] + assignment['I'])**2 == assignment['B'] * assignment['E'] * (assignment['G'] + 1), ['C', 'I', 'B', 'E', 'G']),
-        (lambda assignment: assignment['G'] + assignment['I'] < assignment['E'], ['G', 'I', 'E']),
-        (lambda assignment: assignment['D'] + assignment['H'] > 180, ['D', 'H']),
-        (lambda assignment: assignment['J'] < assignment['H'] - assignment['C'] - assignment['G'], ['J', 'H', 'C', 'G']),
-        (lambda assignment: assignment['J'] > assignment['B'] * assignment['G'] + assignment['D'] + assignment['E'] + assignment['G'], ['J', 'B', 'G', 'D', 'E']),
-        # Problem C constraints
-        (lambda assignment: assignment['K'] * assignment['L'] * assignment['M'] == assignment['B'] * (assignment['B'] + 5), ['K', 'L', 'M', 'B']),
-        (lambda assignment: assignment['F']**3 == assignment['K']**2 * assignment['M']**2 * 10 + 331, ['F', 'K', 'M']),
-        (lambda assignment: assignment['H'] * assignment['M']**2 == assignment['J'] * assignment['K'] - 20, ['H', 'M', 'J', 'K']),
-        (lambda assignment: assignment['J'] + assignment['L'] == assignment['I'] * assignment['L'], ['J', 'L', 'I']),
-        (lambda assignment: assignment['A'] + assignment['D'] + assignment['M'] == assignment['B'] * (assignment['F'] - 2), ['A', 'D', 'M', 'B', 'F'])
-]
+from copy import deepcopy
 
-def check_constraints(assignments, mode):
-    # Determine the range of constraints to check based on the mode
-    if mode == 'A':
-        constraints_to_check = constraints[0:5] 
-    elif mode == 'B':
-        constraints_to_check = constraints[0:12] 
-    elif mode == 'C':
-        constraints_to_check = constraints[0:17] 
-    else:
-        return None
-    
-    # Iterate over the specified constraints
-    for constraint, involved_vars in constraints_to_check:
-        # Extract only the assignments for the involved variables
-        sub_assignments = {var: assignments[var] for var in involved_vars}
-        print(f"Checking constraint with variables: {sub_assignments}")
-        result = constraint(assignments)  
-        print(f"Constraint result: {result}")
-        if not result:
-            return False  # Stop checking further if any constraint fails
-    return True  # All constraints passed
+def forwardCheck(assignment, domains, constraints, var_assigned):
+  updated_domains = {var: list(domains[var]) for var in domains}
 
+  for constraint, vars_involved in constraints:
+    # First, check if the constraint involves the variable that was just assigned
+    if var_assigned in vars_involved:
+      # Determine the number of unassigned variables involved in this constraint
+      unassigned_vars = [var for var in vars_involved if var not in assignment]
+
+      # Proceed only if there's exactly one unassigned variable left in the constraint
+      if len(unassigned_vars) == 1:
+        unassigned_var = unassigned_vars[0]  # The only unassigned variable
+        for value in updated_domains[unassigned_var][:]:  # Iterate over a copy to safely modify
+          hypothetical_assignment = assignment.copy()
+          hypothetical_assignment[unassigned_var] = value
+
+          # Check if the constraint is satisfied with this hypothetical assignment
+          if not constraint(hypothetical_assignment):
+            updated_domains[unassigned_var].remove(value)  # Prune value if constraint fails
+
+        if not updated_domains[unassigned_var]:  # If domain becomes empty, fail
+          return None
+
+  return updated_domains
+
+
+def recursiveBacktracking(assignment, variables, domains, constraints, nva):
+  if len(assignment) == len(variables):
+    return assignment  # Found a valid assignment
+
+  for var in variables:
+    if var not in assignment:  # Find the first unassigned variable
+      for value in domains[var]:
+        new_assignment = assignment.copy()
+        new_assignment[var] = value
+        nva[0] += 1  # Increment the number of variable assignments
+        pruned_domains = forwardCheck(new_assignment, domains, constraints, var)
+        if pruned_domains is not None:
+          result = recursiveBacktracking(new_assignment, variables, pruned_domains, constraints, nva)
+          if result is not None:
+            return result  # Success
+      return None  # Failure triggers backtracking for this variable
+
+#
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 def main():
-    mode = 'A'
-    assignments = {chr(65 + i): 1 for i in range(13)}  # A to M
+  variables = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']
+  domains = {var: list(range(1, 121)) for var in variables}
+  assignment = {}
+  constraints = [
+    #(lambda x: x['A'] > x['B'] + x['C'], ['A', 'B', 'C']),
+    (lambda x: x['A'] == x['B']**2 - x['C']**2, ['A', 'B', 'C']),
+    (lambda x: x['E'] + x['F'] > x['B'], ['E', 'F', 'B']),
+    (lambda x: x['D'] == x['B']**2 - 3 * x['A'], ['D', 'B', 'A']),
+    (lambda x: (x['B'] - x['C']) ** 2 == x['E'] * x['F'] * x['C'] - 1861, ['B', 'C', 'E', 'F']),
+    (lambda x: x['C'] + x['D'] + x['E'] + x['F'] < 120, ['C', 'D', 'E', 'F']),
+    # Problem B constraints
+    (lambda x: (x['G'] + x['I'])**3 == (x['H'] - x['A'] - 1)**2, ['G', 'I', 'H', 'A']),
+    (lambda x: x['B'] * x['E'] * x['F'] == x['H'] * x['B'] - 200, ['B', 'E', 'F', 'H']),
+    (lambda x: (x['C'] + x['I'])**2 == x['B'] * x['E'] * (x['G'] + 1), ['C', 'I', 'B', 'E', 'G']),
+    (lambda x: x['G'] + x['I'] < x['E'], ['G', 'I', 'E']),
+    (lambda x: x['D'] + x['H'] > 180, ['D', 'H']),
+    (lambda x: x['J'] < x['H'] - x['C'] - x['G'], ['J', 'H', 'C', 'G']),
+    (lambda x: x['J'] > x['B'] * x['G'] + x['D'] + x['E'] + x['G'], ['J', 'B', 'G', 'D', 'E']),
+    # Problem C constraints
+    (lambda x: x['K'] * x['L'] * x['M'] == x['B'] * (x['B'] + 5), ['K', 'L', 'M', 'B']),
+    (lambda x: x['F']**3 == x['K']**2 * x['M']**2 * 10 + 331, ['F', 'K', 'M']),
+    (lambda x: x['H'] * x['M']**2 == x['J'] * x['K'] - 20, ['H', 'M', 'J', 'K']),
+    (lambda x: x['J'] + x['L'] == x['I'] * x['L'], ['J', 'L', 'I']),
+    (lambda x: x['A'] + x['D'] + x['M'] == x['B'] * (x['F'] - 2), ['A', 'D', 'M', 'B', 'F'])
+  ]
 
-    result = check_constraints(assignments, mode)
-    print(f"Problem {mode} constraints satisfied: {result}")
+
+  # Example usage:
+  numConstraints = 5  # Number of constraints to actually use
+  numVariables = 6   # Number of variables to actually use
+  nva = [0]  # Number of variable assignments tracker
+
+  # Select a subset of constraints and variables based on the specified numbers
+  print("selected constraints:", numConstraints)
+  print("selected variables: ", variables[:numVariables])
+
+  # Start the solver with an empty assignment
+  solution = recursiveBacktracking(
+    assignment, 
+    variables[:numVariables], 
+    domains, constraints[:numConstraints], 
+    nva
+  )
+
+  if solution is not None:
+    print(f"Solution found: {solution}")
+  else:
+    print("No solution exists")
+  print(f"\nNumber of variable assignments: {nva[0]}")
 
 if __name__ == "__main__":
-    main()
+  main()
