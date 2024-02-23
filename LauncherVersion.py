@@ -3,7 +3,6 @@
 # Adam Nelson-Archer #
 ######################
 
-
 def forwardCheck(assignment, domains, constraints, var_assigned):
   updated_domains = {var: list(domains[var]) for var in domains}
 
@@ -53,6 +52,7 @@ def getLCV(var, assignment, domains, constraints):
   return [value for value, _ in value_counts]
 
 def recursiveBacktracking(assignment, variables, domains, constraints, nva):
+  global firstSolutionFound, solutionDomains
   if len(assignment) == len(variables):
       return assignment
   
@@ -69,13 +69,54 @@ def recursiveBacktracking(assignment, variables, domains, constraints, nva):
       if pruned_domains is not None:
           result = recursiveBacktracking(new_assignment, variables, pruned_domains, constraints, nva)
           if result is not None:
-               return result
+            #return result
+            if not firstSolutionFound:
+              firstSolutionFound = True
+              print(f"1st solution found: {result}")
+              print(f"NVA at first solution: {nva[0]}")
+            for var, value in result.items():
+              if var in solutionDomains:
+                  solutionDomains[var].add(value)
+              else:
+                  solutionDomains[var] = {value}
   return None
+  
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# all of the methods below are just for executing the code
+# Most of this is to set up the automation of problem a/b/c
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-def runCSP():
-  return
-
+firstSolutionFound = False
+solutionDomains = {}  # To accumulate solution domains across all solutions
+def runSingleCSP(name, assignment, variables, domains, constraints, numVariables, numConstraints, nva):
+  global firstSolutionFound, solutionDomains
+  print(f"\nProblem {name} ::")
+  print("number of constraints:", numConstraints)
+  print("selected variables: ", variables[:numVariables])
+  firstSolutionFound = False
+  # Prepare domains for the current problem
+  for var in variables:
+      if var not in solutionDomains or not solutionDomains[var]: 
+        solutionDomains[var] = list(range(1, 121))
+  solutionDomainsCopy = solutionDomains
+  solutionDomains = {}
+  # Execute the recursive backtracking for the current problem setup
+  result = recursiveBacktracking(
+      assignment, 
+      variables[:numVariables], 
+      solutionDomainsCopy, 
+      constraints[:numConstraints], 
+      nva
+  )
+def runCSP(assignment, variables, domains, constraints):
+  nva = [0]
+  # problem A
+  runSingleCSP("A", assignment, variables, domains, constraints, 6, 5, nva)
+  # problem B
+  runSingleCSP("B", assignment, variables, domains, constraints, 10, 12, nva)
+  # problem C
+  runSingleCSP("C", assignment, variables, domains, constraints, 13, 17, nva)
+  
 def main():
   variables = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']
   domains = {var: list(range(1, 121)) for var in variables}
@@ -103,30 +144,19 @@ def main():
     (lambda x: x['A'] + x['D'] + x['M'] == x['B'] * (x['F'] - 2), ['A', 'D', 'M', 'B', 'F'])
   ]
 
-
-  # Example usage:
-  numConstraints = 5  # Number of constraints to actually use
-  numVariables = 6   # Number of variables to actually use
-  nva = [0]  # Number of variable assignments tracker
-
-  # Select a subset of constraints and variables based on the specified numbers
-  print("number of constraints:", numConstraints)
-  print("selected variables: ", variables[:numVariables])
-
-  # find one solution for the given inputs
-  solution = recursiveBacktracking(
+  # this method only exists to serve the multiple "parts" to the assignment
+  # you can feed this program an variables, any constraints. It will work
+  runCSP(assignment, variables, domains, constraints)
+  # just call the main function like this:
+  '''nva = [0]
+  result = recursiveBacktracking(
     assignment, 
-    variables[:numVariables], 
+    variables[:13], 
     domains, 
-    constraints[:numConstraints], 
+    constraints[:17], 
     nva
-  )
-
-  if solution is not None:
-    print(f"Solution found: {solution}")
-  else:
-    print("No solution exists")
-  print(f"\nNumber of variable assignments: {nva[0]}")
+  )'''
+  
 
 if __name__ == "__main__":
   main()
