@@ -77,9 +77,8 @@ def runCSP():
   return
 
 def main():
+  Vrange = (1,120)
   variables = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']
-  domains = {var: list(range(1, 121)) for var in variables}
-  assignment = {}
   constraints = [
     #(lambda x: x['A'] > x['B'] + x['C'], ['A', 'B', 'C']),
     (lambda x: x['A'] == x['B']**2 - x['C']**2, ['A', 'B', 'C']),
@@ -102,14 +101,12 @@ def main():
     (lambda x: x['J'] + x['L'] == x['I'] * x['L'], ['J', 'L', 'I']),
     (lambda x: x['A'] + x['D'] + x['M'] == x['B'] * (x['F'] - 2), ['A', 'D', 'M', 'B', 'F'])
   ]
-
-
-  # Example usage:
-  numConstraints = 5  # Number of constraints to actually use
-  numVariables = 6   # Number of variables to actually use
+  numConstraints = 17  # Number of constraints to actually use
+  numVariables = 13   # Number of variables to actually use
   nva = [0]  # Number of variable assignments tracker
 
-  # Select a subset of constraints and variables based on the specified numbers
+  domains = {var: list(range(Vrange[0], Vrange[1]+1)) for var in variables}
+  assignment = {}
   print("number of constraints:", numConstraints)
   print("selected variables: ", variables[:numVariables])
 
